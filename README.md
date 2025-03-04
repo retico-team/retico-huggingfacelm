@@ -39,7 +39,7 @@ sys.path.append(os.environ['RETICO'])
 from retico_core.debug import DebugModule
 from retico_core.audio import MicrophoneModule
 from retico_whisperasr.whisperasr import WhisperASRModule
-from huggingface_lm import LMModule
+from retico_huggingfacelm.huggingface_lm import HuggingfaceLM
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -52,7 +52,7 @@ streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 mic = MicrophoneModule()
 asr = WhisperASRModule(language='english')
 debug = DebugModule(print_payload_only=True)
-lm = LMModule(asr, device, tokenizer, model, streamer)
+lm = HuggingfaceLM(asr, device, tokenizer, model, streamer)
 
 mic.subscribe(asr)
 asr.subscribe(debug)
