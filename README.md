@@ -1,29 +1,74 @@
-# README #
+# Retico Hugging Face Module#
 
-This README would normally document whatever steps are necessary to get your application up and running.
+A ReTiCo module that works with HuggingFace text generation models. The microphone captures user's speech, which passes through the ASR which is given as input to the Language Model. 
+The output of the Language Model is generated and printed.
 
-### What is this repository for? ###
+### Installation and requirements ###
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+* Clone retico_core:
+https://github.com/retico-team/retico-core.git
 
-### How do I get set up? ###
+* Clone retico_whisperasr:
+https://github.com/retico-team/retico-whisperasr.git
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+* pip install pyaudio
+* pip install pydub
+* pip install webrtcvad
 
-### Contribution guidelines ###
+For HuggingFace login use this command and provide your token.
 
-* Writing tests
-* Code review
-* Other guidelines
+* huggingface-cli login
 
-### Who do I talk to? ###
+Some Hugging Face models will require authorization.
+Go to the model's page and request access to the model.
 
-* Repo owner or admin
-* Other community or team contact
+Currently tested models: HuggingFaceTB/SmolLM2-135M-Instruct, meta-llama/Llama-3.2-3B-Instruct
+
+### Example ###
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, TextIteratorStreamer
+import torch
+
+os.environ['RETICO'] = "path/to/retico-core"
+os.environ['WASR'] = "path/to/retico-whisperasr"
+
+sys.path.append(os.environ['WASR'])
+sys.path.append(os.environ['RETICO'])
+
+from retico_core.debug import DebugModule
+from retico_core.audio import MicrophoneModule
+from retico_whisperasr.whisperasr import WhisperASRModule
+from huggingface_lm import LMModule
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+""" HuggingFace Model, Tokenzier, Model """
+checkpoint = "HuggingFaceTB/SmolLM2-135M-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(checkpoint,  trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(checkpoint,  trust_remote_code=True).to(device)
+streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+
+mic = MicrophoneModule()
+asr = WhisperASRModule(language='english')
+debug = DebugModule(print_payload_only=True)
+lm = LMModule(asr, device, tokenizer, model, streamer)
+
+mic.subscribe(asr)
+asr.subscribe(debug)
+asr.subscribe(lm)
+
+mic.run()
+asr.run()
+debug.run()
+print(f"Hugging Face Model: {checkpoint}")
+lm.run()
+
+input()
+
+mic.stop()
+asr.stop()
+lm.stop()
+debug.stop()
+
+```
