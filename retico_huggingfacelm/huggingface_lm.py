@@ -1,29 +1,23 @@
 import os
 import sys
 
-# os.environ['RETICO'] = 'path/to/retico-core'
-# os.environ['WASR'] = 'path/to/retico-whisperasr'
-
-# sys.path.append(os.environ['RETICO'])
-# sys.path.append(os.environ['WASR'])
-
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, TextIteratorStreamer
 import retico_core
 from retico_core import abstract
 from retico_core.text import SpeechRecognitionIU, TextIU
-from retico_whisperasr.whisperasr import WhisperASRModule
+# from retico_whisperasr.whisperasr import WhisperASRModule
 
 class HuggingfaceLM(abstract.AbstractModule):
-    def __init__(self, asr, device, tokenizer, model, streamer):
+    def __init__(self,  device, tokenizer, model, streamer):
         super().__init__()
-        self.asr = asr
         self.sentence = ""
 
         self.device = device
         self.tokenizer = tokenizer
         self.model = model
         self.streamer = streamer
+        self.prefix = []
         
     @staticmethod
     def name():
@@ -40,18 +34,19 @@ class HuggingfaceLM(abstract.AbstractModule):
     @staticmethod
     def output_iu():
         return TextIU
-
+        
+                
     def process_update(self, update_message):
-        text, _ = self.asr.acr.recognize()
-        if text is not None:
-            self.sentence = str(text)
 
         last_commit_sentence = None 
-
+        # print(self.prefix)
         for iu, um in update_message:  
+            if um == abstract.UpdateType.ADD:
+                self.prefix.append(iu.payload)
             if um == abstract.UpdateType.COMMIT: 
-                last_commit_sentence = self.sentence
+                last_commit_sentence = ' '.join(self.prefix)
 
+        # print('from user', last_commit_sentence)
         if last_commit_sentence:
             self.process_iu(last_commit_sentence, iu)
         
@@ -89,6 +84,7 @@ class HuggingfaceLM(abstract.AbstractModule):
             self.current_output.append(current_iu)
             update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.ADD)
             self.append(update_message)
+        self.prefix = []
 
     def process_revoke(self, iu):
         pass
