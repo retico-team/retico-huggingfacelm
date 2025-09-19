@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=80", "setuptools-scm[simple]>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retico-huggingfacelm"
+dynamic = ["version"]
+dependencies = [
+    "transformers",
+    # "torch",          # Assume that user already has PyTorch installed for their system
+    # "torchvision",
+]
+authors = [
+    {name = "Anna Manaseryan"},
+]
+description = "A Retico module for HuggingFace text generation models."
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["real-time", "HuggingFace", "text-generation", "LM"]
+
