@@ -27,8 +27,8 @@ Currently tested models: HuggingFaceTB/SmolLM2-135M-Instruct, meta-llama/Llama-3
 ### Example ###
 
 ```python
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, TextIteratorStreamer
-import torch
+import os
+import sys
 
 os.environ['RETICO'] = "path/to/retico-core"
 os.environ['WASR'] = "path/to/retico-whisperasr"
@@ -36,6 +36,8 @@ os.environ['WASR'] = "path/to/retico-whisperasr"
 sys.path.append(os.environ['RETICO'])
 sys.path.append(os.environ['WASR'])
 
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, TextIteratorStreamer
 from retico_core.debug import DebugModule
 from retico_core.audio import MicrophoneModule
 from retico_whisperasr.whisperasr import WhisperASRModule
