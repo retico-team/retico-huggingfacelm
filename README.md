@@ -1,4 +1,4 @@
-# Retico Hugging Face Module#
+# Retico Hugging Face Module
 
 A ReTiCo module that works with HuggingFace text generation models. The microphone captures user's speech, which passes through the ASR which is given as input to the Language Model. 
 The output of the Language Model is generated and printed.
@@ -33,8 +33,8 @@ import torch
 os.environ['RETICO'] = "path/to/retico-core"
 os.environ['WASR'] = "path/to/retico-whisperasr"
 
-sys.path.append(os.environ['WASR'])
 sys.path.append(os.environ['RETICO'])
+sys.path.append(os.environ['WASR'])
 
 from retico_core.debug import DebugModule
 from retico_core.audio import MicrophoneModule
@@ -52,7 +52,7 @@ streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 mic = MicrophoneModule()
 asr = WhisperASRModule(language='english')
 debug = DebugModule(print_payload_only=True)
-lm = HuggingfaceLM(asr, device, tokenizer, model, streamer)
+lm = HuggingfaceLM(device, tokenizer, model, streamer)
 
 mic.subscribe(asr)
 asr.subscribe(debug)
