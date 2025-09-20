@@ -6,12 +6,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, Text
 import retico_core
 from retico_core import abstract
 from retico_core.text import SpeechRecognitionIU, TextIU
-# from retico_whisperasr.whisperasr import WhisperASRModule
 
 class HuggingfaceLM(abstract.AbstractModule):
     def __init__(self,  device, tokenizer, model, streamer):
         super().__init__()
-        self.sentence = ""
 
         self.device = device
         self.tokenizer = tokenizer
@@ -37,17 +35,13 @@ class HuggingfaceLM(abstract.AbstractModule):
         
                 
     def process_update(self, update_message):
+        last_commit_sentence = ""
+        for iu, ut in update_message:  
+            if ut == abstract.UpdateType.COMMIT: 
+                last_commit_sentence += f"{iu.text} "
 
-        last_commit_sentence = None 
-        # print(self.prefix)
-        for iu, um in update_message:  
-            if um == abstract.UpdateType.ADD:
-                self.prefix.append(iu.payload)
-            if um == abstract.UpdateType.COMMIT: 
-                last_commit_sentence = ' '.join(self.prefix)
-
-        # print('from user', last_commit_sentence)
-        if last_commit_sentence:
+        if len(last_commit_sentence) > 0:
+            print('from user:', last_commit_sentence)
             self.process_iu(last_commit_sentence, iu)
         
 
