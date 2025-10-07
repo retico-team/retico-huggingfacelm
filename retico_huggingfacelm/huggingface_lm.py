@@ -15,7 +15,6 @@ class HuggingfaceLM(abstract.AbstractModule):
         self.tokenizer = tokenizer
         self.model = model
         self.streamer = streamer
-        self.prefix = []
         
     @staticmethod
     def name():
@@ -33,17 +32,26 @@ class HuggingfaceLM(abstract.AbstractModule):
     def output_iu():
         return TextIU
         
-                
     def process_update(self, update_message):
-        last_commit_sentence = ""
+        send_prompt = False
         for iu, ut in update_message:  
-            if ut == abstract.UpdateType.COMMIT: 
-                last_commit_sentence += f"{iu.text} "
-
-        if len(last_commit_sentence) > 0:
-            print('from user:', last_commit_sentence)
-            self.process_iu(last_commit_sentence, iu)
+            if ut == abstract.UpdateType.ADD: 
+                self.current_output.append(iu)
+            elif ut == abstract.UpdateType.REVOKE:
+                self.revoke(iu)
+            elif ut == abstract.UpdateType.COMMIT:
+                send_prompt = True
         
+        if send_prompt:
+            send_prompt = False
+            last_commit_sentence = ""
+            for unit in self.current_output:
+                last_commit_sentence += f"{unit.text} "
+            self.current_output = []
+
+            if len(last_commit_sentence) > 0:
+                print('user:', last_commit_sentence)
+                self.process_iu(last_commit_sentence, iu)
 
     def process_iu(self, last_commit_sentence, iu):
 
@@ -78,7 +86,6 @@ class HuggingfaceLM(abstract.AbstractModule):
             self.current_output.append(current_iu)
             update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.ADD)
             self.append(update_message)
-        self.prefix = []
 
     def process_revoke(self, iu):
         pass
