@@ -6,9 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "retico-huggingfacelm"
 dynamic = ["version"]
 dependencies = [
+    "retico-core>=2.0.0",
     "transformers",
-    # "torch",          # Assume that user already has PyTorch installed for their system
-    # "torchvision",
+    "torch",
+    "torchvision",
 ]
 authors = [
     {name = "Anna Manaseryan"},
