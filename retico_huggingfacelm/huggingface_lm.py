@@ -50,7 +50,7 @@ class HuggingfaceLM(abstract.AbstractModule):
             self.current_output = []
 
             if len(last_commit_sentence) > 0:
-                print('user:', last_commit_sentence)
+                #print('user:', last_commit_sentence)
                 self.process_iu(last_commit_sentence, iu)
 
     def process_iu(self, last_commit_sentence, iu):
@@ -79,15 +79,19 @@ class HuggingfaceLM(abstract.AbstractModule):
             
         response = self.tokenizer.decode(output_tokens[0][input_length:], skip_special_tokens=True)
         words = response.split()  
-
+        
+        current_iu = None
         for word in words:
             current_iu = self.create_iu(iu)
             current_iu.payload = word
-            self.current_output.append(current_iu)
             update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.ADD)
+            self.append(update_message)
+        
+        # Send singular COMMIT to signal end of output/response for a given prompt
+        if current_iu is not None:
+            update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.COMMIT)
             self.append(update_message)
 
     def process_revoke(self, iu):
         pass
-
         
