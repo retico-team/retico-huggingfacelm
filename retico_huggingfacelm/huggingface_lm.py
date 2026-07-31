@@ -70,8 +70,18 @@ class HuggingfaceLM(abstract.AbstractModule):
         ]
 
         tokenized_chat = self.tokenizer.apply_chat_template(
-            messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
-        input_ids = tokenized_chat["input_ids"].to(self.device)
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt"
+        )
+
+        if isinstance(tokenized_chat, torch.Tensor):  # sometimes we get a tensor, other times a dictionary
+            input_ids = tokenized_chat.to(self.device)
+
+        else:
+            input_ids = tokenized_chat["input_ids"].to(self.device)
+
         input_length = input_ids.shape[1]
 
         with torch.no_grad():
