@@ -18,10 +18,11 @@ class HuggingfaceLM(abstract.AbstractModule):
 
     def __init__(self, device, tokenizer, model, streamer):
         super().__init__()
-        self.device = device
-        self.tokenizer = tokenizer
-        self.model = model
-        self.streamer = streamer
+        self._device = device
+        self._tokenizer = tokenizer
+        self._model = model
+        self._streamer = streamer
+        self._system_role = "You are a friendly chatbot who responds to questions"  # just a default.
 
     @staticmethod
     def name():
@@ -41,7 +42,9 @@ class HuggingfaceLM(abstract.AbstractModule):
 
     def process_update(self, update_message):
         send_prompt = False
+
         for iu, ut in update_message:
+
             if ut == abstract.UpdateType.ADD:
                 self.current_output.append(iu)
             elif ut == abstract.UpdateType.REVOKE:
@@ -58,18 +61,21 @@ class HuggingfaceLM(abstract.AbstractModule):
 
             if len(last_commit_sentence) > 0:
                 # print('user:', last_commit_sentence)
-                self.process_iu(last_commit_sentence, iu)
+                self.generate_model_output(last_commit_sentence)
 
-    def process_iu(self, last_commit_sentence, iu):
+    def set_system_role(self, role):
+        self._system_role = role
+
+    def generate_model_output(self, last_commit_sentence):
 
         messages = [
             {"role": "system",
-             "content": "You are a friendly chatbot who responds to questions"},
+             "content": self._system_role},
             {"role": "user",
              "content": last_commit_sentence},
         ]
 
-        tokenized_chat = self.tokenizer.apply_chat_template(
+        tokenized_chat = self._tokenizer.apply_chat_template(
             messages,
             tokenize=True,
             add_generation_prompt=True,
@@ -77,29 +83,29 @@ class HuggingfaceLM(abstract.AbstractModule):
         )
 
         if isinstance(tokenized_chat, torch.Tensor):  # sometimes we get a tensor, other times a dictionary
-            input_ids = tokenized_chat.to(self.device)
+            input_ids = tokenized_chat.to(self._device)
 
         else:
-            input_ids = tokenized_chat["input_ids"].to(self.device)
+            input_ids = tokenized_chat["input_ids"].to(self._device)
 
         input_length = input_ids.shape[1]
 
         with torch.no_grad():
-            output_tokens = self.model.generate(
+            output_tokens = self._model.generate(
                 input_ids,
                 max_new_tokens=500,
                 temperature=0.2,
                 top_p=0.9,
                 do_sample=True,
-                streamer=self.streamer
+                streamer=self._streamer
             )
 
-        response = self.tokenizer.decode(output_tokens[0][input_length:], skip_special_tokens=True)
+        response = self._tokenizer.decode(output_tokens[0][input_length:], skip_special_tokens=True)
         words = response.split()
 
         current_iu = None
         for word in words:
-            current_iu = self.create_iu(iu)
+            current_iu = self.create_iu()
             current_iu.payload = word
             update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.ADD)
             self.append(update_message)
