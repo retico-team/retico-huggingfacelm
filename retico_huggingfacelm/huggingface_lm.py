@@ -8,9 +8,16 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, Text
 
 
 class HuggingfaceLM(abstract.AbstractModule):
+
+    @classmethod
+    def from_checkpoint(cls, checkpoint, device="cpu"):
+        tokenizer = AutoTokenizer.from_pretrained(checkpoint, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(checkpoint, trust_remote_code=True).to(device)
+        streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+        return cls(device, tokenizer, model, streamer)
+
     def __init__(self, device, tokenizer, model, streamer):
         super().__init__()
-
         self.device = device
         self.tokenizer = tokenizer
         self.model = model
