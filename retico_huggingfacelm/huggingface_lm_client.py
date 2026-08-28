@@ -1,17 +1,10 @@
-import os
-import retico_core
-import sys
 import torch
-from retico_core import abstract
-from retico_core.text import SpeechRecognitionIU, TextIU
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, TextIteratorStreamer
-from pprint import pformat
 
-
-class HuggingfaceLM(abstract.AbstractModule):
+class HuggingfaceLMClient:
 
     @classmethod
-    def from_checkpoint(cls,
+    def quick_from_checkpoint(cls,
                         checkpoint,
                         device="cpu",
                         system_role="You are a friendly chatbot who responds to questions",  # just a default.
@@ -34,7 +27,6 @@ class HuggingfaceLM(abstract.AbstractModule):
                  max_new_tokens,
                  temperature
                  ):
-        super().__init__()
         self._device = device
         self._tokenizer = tokenizer
         self._model = model
@@ -46,44 +38,11 @@ class HuggingfaceLM(abstract.AbstractModule):
         self.turns = 0
         self.set_system_role(system_role)
 
-    @staticmethod
-    def name():
-        return "Hugging Face LM Module"
-
-    @staticmethod
-    def description():
-        return "A module running Hugging Face language model for real-time dialogue."
-
-    @staticmethod
-    def input_ius():
-        return SpeechRecognitionIU
-
-    @staticmethod
-    def output_iu():
-        return TextIU
-
-    def process_update(self, update_message):
-        send_prompt = False
-
-        for iu, ut in update_message:
-
-            if ut == abstract.UpdateType.ADD:
-                self.current_output.append(iu)
-            elif ut == abstract.UpdateType.REVOKE:
-                self.revoke(iu)
-            elif ut == abstract.UpdateType.COMMIT:
-                send_prompt = True
-
-        if send_prompt:
-            send_prompt = False
-            last_commit_sentence = ""
-            for unit in self.current_output:
-                last_commit_sentence += f"{unit.text} "
-            self.current_output = []
-
-            if len(last_commit_sentence) > 0:
-                # print('user:', last_commit_sentence)
-                self.generate_model_output(last_commit_sentence)
+    ########## API interface to the LM
+    # - set the system role, defines the instructions to the LM (the system role)
+    # - set max history turns, defines how many exchanges to keep in the prompt to the LM
+    # - clear history, as described, keeps the role
+    # - generate response, takes a next query, compiles the role and history, and returns the result.
 
     # set the system role to be sent into the LLM from this point onward. Does not change history.
     def set_system_role(self, role):
@@ -112,9 +71,10 @@ class HuggingfaceLM(abstract.AbstractModule):
             self.turns -= 1
             self._message_history = [self._message_history[0]] + self._message_history[-(self.turns * 2):]
 
-    def generate_model_output(self, last_commit_sentence):
 
-        self._message_history.append( {"role": "user", "content": last_commit_sentence}   )
+    def generate_response(self, query):
+
+        self._message_history.append( {"role": "user", "content": query}   )
 
         tokenized_chat = self._tokenizer.apply_chat_template(
             self._message_history,
@@ -123,9 +83,8 @@ class HuggingfaceLM(abstract.AbstractModule):
             return_tensors="pt"
         )
 
-        if isinstance(tokenized_chat, torch.Tensor):  # sometimes we get a tensor, other times a dictionary
+        if isinstance(tokenized_chat, torch.Tensor):  # sometimes we get a tensor, other times a dictionary, based on LM version
             input_ids = tokenized_chat.to(self._device)
-
         else:
             input_ids = tokenized_chat["input_ids"].to(self._device)
 
@@ -142,25 +101,5 @@ class HuggingfaceLM(abstract.AbstractModule):
             )
 
         response = self._tokenizer.decode(output_tokens[0][input_length:], skip_special_tokens=True)
-
-        # self._message_history.append({"role": "assistant", "content": response})
-        # self.turns += 1
         self._add_response_and_truncate(response)
-        print ("turns: "+str(self.turns)+" history  "+ pformat(self._message_history))
-
-        words = response.split()
-
-        current_iu = None
-        for word in words:
-            current_iu = self.create_iu()
-            current_iu.payload = word
-            update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.ADD)
-            self.append(update_message)
-
-        # Send singular COMMIT to signal end of output/response for a given prompt
-        if current_iu is not None:
-            update_message = retico_core.UpdateMessage.from_iu(current_iu, retico_core.UpdateType.COMMIT)
-            self.append(update_message)
-
-    def process_revoke(self, iu):
-        pass
+        return response

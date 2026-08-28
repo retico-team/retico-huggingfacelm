@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "retico-huggingfacelm"
 dynamic = ["version"]
 dependencies = [
-    "retico-core>=2.0.0",
+    "retico-core @ git+https://github.com/retico-team/retico-core@39e9957ee008b3e13ab4248040929f29056fb4ad",  #pip version out of date
     "transformers",
     "torch",
     "torchvision",

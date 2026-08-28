@@ -1,2 +1,2 @@
-from .huggingface_lm import *
-
+from .huggingface_lm_module import *
+from .huggingface_lm_client import *
