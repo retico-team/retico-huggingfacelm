@@ -21,7 +21,7 @@ class HuggingfaceLMModule(abstract.AbstractModule):
 
     @staticmethod
     def input_ius():
-        return SpeechRecognitionIU
+        return [SpeechRecognitionIU]
 
     @staticmethod
     def output_iu():

@@ -56,7 +56,8 @@ class HuggingfaceLMClient:
     def set_max_history_turns(self, turns):
         self._max_history_turns = turns
         if turns < self.turns and turns > 0:  # truncate, keep the newest n turns
-            self._message_history = [ self._message_history[0] ] + self._messages_history[-(turns * 2): ]
+            self._message_history = [ self._message_history[0] ] + self._message_history[-(turns * 2): ]
+            self.turns = turns
 
     def clear_history(self):
         system_role = self._message_history[0]["content"]

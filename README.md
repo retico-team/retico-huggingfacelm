@@ -1,76 +1,80 @@
-# Retico Hugging Face Module
+# retico-huggingfacelm
+A ReTiCo module that works with Hugging Face text generation models. It takes the user's speech recognized by an ASR module, sends it to a language model, and outputs the model's response word by word.
 
-A ReTiCo module that works with HuggingFace text generation models. The microphone captures user's speech, which passes through the ASR which is given as input to the Language Model. 
-The output of the Language Model is generated and printed.
+## Installation and Requirements
 
-### Installation and requirements ###
+To use the Hugging Face LM module you first need to install the retico-huggingfacelm package:
+* Install retico-huggingfacelm:
+```pip install retico-huggingfacelm```
 
-* Clone retico_core:
-https://github.com/retico-team/retico-core.git
+  or, for the latest development version from GitHub:
+```pip install git+https://github.com/retico-team/retico-huggingfacelm.git```
 
-* Clone retico_whisperasr:
-https://github.com/retico-team/retico-whisperasr.git
+### Hugging Face login
+Some Hugging Face models require authorization. Go to the model's page and request access, then log in with your token:
+```huggingface-cli login```
 
-* pip install pyaudio
-* pip install pydub
-* pip install webrtcvad
+## Modules
 
-For HuggingFace login use this command and provide your token.
+### `HuggingfaceLMClient`
+A wrapper around a Hugging Face chat model that keeps the conversation history. Create one with `HuggingfaceLMClient.quick_from_checkpoint()`, which loads the model, tokenizer and a streamer that prints the response as it's generated, or with the constructor to supply your own.
 
-* huggingface-cli login
+#### Arguments (`quick_from_checkpoint`):
+* `checkpoint` (str): the Hugging Face model to load, e.g. `"HuggingFaceTB/SmolLM2-135M-Instruct"`
+* `device` (str): the device to run the model on, e.g. `"cpu"` or `"cuda:0"`; defaults to `"cpu"`
+* `system_role` (str): the system instructions for the model; defaults to `"You are a friendly chatbot who responds to questions"`
+* `max_history_turns` (int): the number of previous exchanges kept in the prompt; defaults to `10`
+* `max_new_tokens` (int): the maximum number of tokens in a response; defaults to `75`
+* `temperature` (float): between `0` and `1`; higher means more random responses; defaults to `0.2`
 
-Some Hugging Face models will require authorization.
-Go to the model's page and request access to the model.
+The client can also be used on its own with `generate_response(query)`, `set_system_role(role)`, `set_max_history_turns(turns)` and `clear_history()`.
 
-Currently tested models: HuggingFaceTB/SmolLM2-135M-Instruct, meta-llama/Llama-3.2-3B-Instruct
+### `HuggingfaceLMModule`
+Subscribes to `SpeechRecognitionIU` and outputs `TextIU`. Once the user's speech is committed, it sends the text to the client and outputs the response one word per IU, followed by a COMMIT at the end of the response.
 
-### Example ###
+#### Arguments:
+* `lm_client` (`HuggingfaceLMClient`): the client to generate responses with
+
+### Example
+**Note:** The example uses `MicrophoneModule` and `DebugModule` from `retico_core` and `WhisperASRModule` from [retico-whisperasr](https://github.com/retico-team/retico-whisperasr) (`pip install retico-whisperasr`).
 
 ```python
-import os
-import sys
-
-os.environ['RETICO'] = "path/to/retico-core"
-os.environ['WASR'] = "path/to/retico-whisperasr"
-
-sys.path.append(os.environ['RETICO'])
-sys.path.append(os.environ['WASR'])
-
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextStreamer, TextIteratorStreamer
 from retico_core.debug import DebugModule
 from retico_core.audio import MicrophoneModule
-from retico_whisperasr.whisperasr import WhisperASRModule
-from retico_huggingfacelm.huggingface_lm import HuggingfaceLM
+from retico_whisperasr import WhisperASRModule
+from retico_huggingfacelm import HuggingfaceLMClient, HuggingfaceLMModule
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-""" HuggingFace Model, Tokenzier, Model """
 checkpoint = "HuggingFaceTB/SmolLM2-135M-Instruct"
-tokenizer = AutoTokenizer.from_pretrained(checkpoint,  trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(checkpoint,  trust_remote_code=True).to(device)
-streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+llm_client = HuggingfaceLMClient.quick_from_checkpoint(checkpoint, device="cpu", temperature=0.7)
 
 mic = MicrophoneModule()
-asr = WhisperASRModule(language='english')
+asr = WhisperASRModule()
+lm = HuggingfaceLMModule(llm_client)
 debug = DebugModule(print_payload_only=True)
-lm = HuggingfaceLM(device, tokenizer, model, streamer)
 
 mic.subscribe(asr)
-asr.subscribe(debug)
 asr.subscribe(lm)
+lm.subscribe(debug)
 
 mic.run()
 asr.run()
-debug.run()
-print(f"Hugging Face Model: {checkpoint}")
 lm.run()
+debug.run()
 
+print(f"Hugging Face Model: {checkpoint}")
 input()
 
 mic.stop()
 asr.stop()
 lm.stop()
 debug.stop()
+```
 
+The client can also be used without a network, e.g. to test a model:
+```python
+from retico_huggingfacelm import HuggingfaceLMClient
+
+llm_client = HuggingfaceLMClient.quick_from_checkpoint("HuggingFaceTB/SmolLM2-135M-Instruct")
+llm_client.set_system_role("You are a grumpy Wizard who does not talk a lot.")
+llm_client.generate_response("Who are you?")  # the default streamer prints the response
 ```

@@ -6,10 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "retico-huggingfacelm"
 dynamic = ["version"]
 dependencies = [
-    "retico-core @ git+https://github.com/retico-team/retico-core@39e9957ee008b3e13ab4248040929f29056fb4ad",  #pip version out of date
+    "retico-core>=2.0.1",
     "transformers",
     "torch",
-    "torchvision",
 ]
 authors = [
     {name = "Anna Manaseryan"},
@@ -19,3 +18,8 @@ readme = "README.md"
 license = { file = "LICENSE" }
 keywords = ["real-time", "HuggingFace", "text-generation", "LM"]
 
+[project.urls]
+Repository = "https://github.com/retico-team/retico-huggingfacelm"
+
+[tool.setuptools_scm]
+version_file = "retico_huggingfacelm/version.py"
